@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贪吃蛇小游戏</title>
+    <style>
+        body {
+            background: #2b2b2b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        .game-container {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #444;
+            background-color: #111;
+            display: block;
+            margin: 0 auto;
+        }
+        .score {
+            color: #fff;
+            font-size: 20px;
+            margin: 10px 0;
+        }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="score">得分: <span id="score">0</span></div>
+        <button id="restartBtn">重新开始</button>
+    </div>
+
+    <script>
+        // 获取画布和上下文
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreSpan = document.getElementById('score');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // 游戏配置
+        const gridSize = 20;          // 格子大小
+        const tileCount = 20;          // 每行/列格子数
+        let snake = [];                // 蛇身体坐标数组
+        let direction = { x: 1, y: 0 }; // 当前移动方向（右）
+        let food = {};                 // 食物坐标
+        let score = 0;                 // 得分
+        let gameOver = false;           // 游戏是否结束
+        let gameInterval;               // 定时器ID
+
+        // 初始化游戏
+        function initGame() {
+            // 蛇的初始位置：长度为3，水平放置
+            snake = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            direction = { x: 1, y: 0 }; // 初始方向向右
+            score = 0;
+            gameOver = false;
+            scoreSpan.textContent = score;
+            generateFood(); // 随机生成食物
+            drawGame();      // 立即绘制一次
+        }
+
+        // 生成随机食物（确保不在蛇身上）
+        function generateFood() {
+            let newFood;
+            do {
+                newFood = {
+                    x: Math.floor(Math.random() * tileCount),
+                    y: Math.floor(Math.random() * tileCount)
+                };
+            } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+            food = newFood;
+        }
+
+        // 绘制游戏画面
+        function drawGame() {
+            // 清空画布
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制蛇
+            ctx.fillStyle = '#4caf50';
+            snake.forEach(segment => {
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+            });
+
+            // 绘制食物
+            ctx.fillStyle = '#ff5252';
+            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+        }
+
+        // 更新游戏状态
+        function updateGame() {
+            if (gameOver) return;
+
+            // 计算新蛇头坐标
+            const head = { ...snake[0] };
+            head.x += direction.x;
+            head.y += direction.y;
+
+            // 检查是否吃到食物
+            if (head.x === food.x && head.y === food.y) {
+                // 吃到了：食物重新生成，蛇头插入，不删除尾部（长度+1）
+                snake.unshift(head);
+                generateFood();
+                score++;
+                scoreSpan.textContent = score;
+            } else {
+                // 没吃到：蛇头插入，删除尾部（保持长度不变）
+                snake.unshift(head);
+                snake.pop();
+            }
+
+            // 检查碰撞（墙壁或自身）
+            // 墙壁碰撞
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver = true;
+                clearInterval(gameInterval);
+                alert('游戏结束！撞墙了。');
+                return;
+            }
+
+            // 自身碰撞（从索引1开始检查，因为蛇头就是head）
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[i].x === head.x && snake[i].y === head.y) {
+                    gameOver = true;
+                    clearInterval(gameInterval);
+                    alert('游戏结束！撞到自己了。');
+                    return;
+                }
+            }
+
+            // 重新绘制画面
+            drawGame();
+        }
+
+        // 键盘事件监听
+        document.addEventListener('keydown', (e) => {
+            if (gameOver) return;
+
+            // 防止同时按下多个键导致反向（例如向左移动时不能直接向右）
+            switch (e.key) {
+                case 'ArrowUp':
+                    if (direction.y === 0) direction = { x: 0, y: -1 };
+                    break;
+                case 'ArrowDown':
+                    if (direction.y === 0) direction = { x: 0, y: 1 };
+                    break;
+                case 'ArrowLeft':
+                    if (direction.x === 0) direction = { x: -1, y: 0 };
+                    break;
+                case 'ArrowRight':
+                    if (direction.x === 0) direction = { x: 1, y: 0 };
+                    break;
+            }
+        });
+
+        // 重新开始按钮点击事件
+        restartBtn.addEventListener('click', () => {
+            // 清除之前的定时器
+            if (gameInterval) clearInterval(gameInterval);
+            // 重新初始化
+            initGame();
+            // 启动新定时器
+            gameInterval = setInterval(updateGame, 150); // 速度150ms一步
+        });
+
+        // 启动游戏
+        initGame();
+        gameInterval = setInterval(updateGame, 150);
+    </script>
+</body>
+</html>
